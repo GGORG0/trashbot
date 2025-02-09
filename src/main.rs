@@ -1,6 +1,6 @@
 use dotenv::dotenv;
 use once_cell::sync::OnceCell;
-use poise::serenity_prelude::{self as serenity, CacheHttp, GetMessages, GuildId};
+use poise::serenity_prelude::{self as serenity, ActivityData, CacheHttp, GetMessages, GuildId};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -115,6 +115,8 @@ async fn main() {
                     framework.options().commands.len(),
                     guild_id.name(ctx.cache().unwrap()).unwrap()
                 );
+
+                ctx.set_activity(Some(ActivityData::custom("🗑️")));
 
                 STARTUP_TIME.set(std::time::Instant::now()).unwrap();
 
