@@ -1,6 +1,6 @@
 use dotenv::dotenv;
 use once_cell::sync::OnceCell;
-use poise::serenity_prelude::{self as serenity, GetMessages, GuildId};
+use poise::serenity_prelude::{self as serenity, CacheHttp, GetMessages, GuildId};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -19,8 +19,20 @@ pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
 /// Get the bot's uptime.
 #[poise::command(slash_command, prefix_command)]
 async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
-    let response = format!(":fire: Uptime: {:?}", STARTUP_TIME.get().unwrap().elapsed());
-    ctx.say(response).await?;
+    ctx.say(format!(
+        ":fire: Uptime: {:?}",
+        STARTUP_TIME.get().unwrap().elapsed()
+    ))
+    .await?;
+
+    Ok(())
+}
+
+/// Get the bot's gateway latency.
+#[poise::command(slash_command, prefix_command)]
+async fn ping(ctx: Context<'_>) -> Result<(), Error> {
+    ctx.say(format!(":fire: Ping: {:?}", ctx.ping().await))
+        .await?;
 
     Ok(())
 }
@@ -65,14 +77,13 @@ async fn purge(
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    STARTUP_TIME.set(std::time::Instant::now()).unwrap();
 
     let token = std::env::var("TOKEN").expect("missing TOKEN");
     let intents = serenity::GatewayIntents::non_privileged();
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![register(), uptime(), purge()],
+            commands: vec![register(), uptime(), purge(), ping()],
             prefix_options: poise::PrefixFrameworkOptions {
                 ignore_bots: false, // We use a Matrix -> Discord bridge bot
                 case_insensitive_commands: true,
@@ -91,6 +102,22 @@ async fn main() {
                 let guild_id: GuildId = std::env::var("GUILD_ID").unwrap().parse().unwrap();
                 poise::builtins::register_in_guild(ctx, &framework.options().commands, guild_id)
                     .await?;
+
+                let user = ctx.http.get_current_user().await?;
+                println!(
+                    "Bot is ready as: {}#{}",
+                    user.name,
+                    user.discriminator.unwrap()
+                );
+
+                println!(
+                    "{} commands registered to guild {}",
+                    framework.options().commands.len(),
+                    guild_id.name(ctx.cache().unwrap()).unwrap()
+                );
+
+                STARTUP_TIME.set(std::time::Instant::now()).unwrap();
+
                 Ok(())
             })
         })
