@@ -1,6 +1,9 @@
 use dotenv::dotenv;
 use once_cell::sync::OnceCell;
-use poise::serenity_prelude::{self as serenity, ActivityData, CacheHttp, GetMessages, GuildId};
+use poise::{
+    samples::HelpConfiguration,
+    serenity_prelude::{self as serenity, ActivityData, CacheHttp, GetMessages, GuildId},
+};
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -9,8 +12,18 @@ type Context<'a> = poise::Context<'a, (), Error>;
 
 static STARTUP_TIME: OnceCell<std::time::Instant> = OnceCell::new();
 
+/// Show this menu
+#[poise::command(prefix_command, track_edits, slash_command)]
+pub async fn help(
+    ctx: Context<'_>,
+    #[description = "Specific command to show help about"] command: Option<String>,
+) -> Result<(), Error> {
+    poise::builtins::help(ctx, command.as_deref(), HelpConfiguration::default()).await?;
+    Ok(())
+}
+
 /// Show a menu of slash command registration options.
-#[poise::command(prefix_command, owners_only)]
+#[poise::command(prefix_command, owners_only, hide_in_help)]
 pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
     poise::builtins::register_application_commands_buttons(ctx).await?;
     Ok(())
@@ -83,7 +96,7 @@ async fn main() {
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![register(), uptime(), purge(), ping()],
+            commands: vec![help(), register(), uptime(), purge(), ping()],
             prefix_options: poise::PrefixFrameworkOptions {
                 ignore_bots: false, // We use a Matrix -> Discord bridge bot
                 case_insensitive_commands: true,
