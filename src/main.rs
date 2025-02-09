@@ -121,6 +121,11 @@ async fn nixos(
         .unwrap()
         .parse::<u8>()?;
 
+    if score > 100 {
+        ctx.say(":fire: You're too positive!").await?;
+        return Ok(());
+    }
+
     if score < 50 && !ctx.author().bot {
         let ts =
             Timestamp::from_unix_timestamp((Utc::now() + Duration::from_secs(69)).timestamp())?;
