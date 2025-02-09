@@ -36,6 +36,13 @@ async fn main() {
             commands: vec![register(), uptime()],
             prefix_options: poise::PrefixFrameworkOptions {
                 ignore_bots: false, // We use a Matrix -> Discord bridge bot
+                case_insensitive_commands: true,
+                dynamic_prefix: Some(|ctx| {
+                    Box::pin(async move {
+                        // Mentions are <@USER_ID>, with Matrix clients appending ":" to the end
+                        Ok(Some(format!("<@{}>\\:", ctx.framework.bot_id)))
+                    })
+                }),
                 ..Default::default()
             },
             ..Default::default()
