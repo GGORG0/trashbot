@@ -1,6 +1,8 @@
 use dotenv::dotenv;
 use once_cell::sync::OnceCell;
-use poise::serenity_prelude::{self as serenity, GuildId};
+use poise::serenity_prelude::{self as serenity, GetMessages, GuildId};
+use std::time::Duration;
+use tokio::time::sleep;
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, (), Error>;
@@ -23,6 +25,43 @@ async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Purges a number of messages from the channel.
+#[poise::command(
+    slash_command,
+    prefix_command,
+    required_permissions = "MANAGE_MESSAGES",
+    guild_only
+)]
+async fn purge(
+    ctx: Context<'_>,
+    #[description = "The number of messages to delete"] number: u8,
+) -> Result<(), Error> {
+    let message_ids = ctx
+        .guild_channel()
+        .await
+        .unwrap()
+        .messages(
+            ctx.http(),
+            GetMessages::new().limit(number + if ctx.prefix() == "/" { 0 } else { 1 }),
+        )
+        .await?
+        .iter()
+        .map(|msg| msg.id)
+        .collect::<Vec<_>>();
+
+    ctx.guild_channel()
+        .await
+        .unwrap()
+        .delete_messages(ctx.http(), message_ids)
+        .await?;
+
+    let msg = ctx.say(":fire: Deleted messages!").await?;
+    sleep(Duration::from_secs(5)).await;
+    msg.delete(ctx).await?;
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() {
     dotenv().ok();
@@ -33,7 +72,7 @@ async fn main() {
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
-            commands: vec![register(), uptime()],
+            commands: vec![register(), uptime(), purge()],
             prefix_options: poise::PrefixFrameworkOptions {
                 ignore_bots: false, // We use a Matrix -> Discord bridge bot
                 case_insensitive_commands: true,
