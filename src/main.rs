@@ -96,7 +96,9 @@ async fn purge(
 #[poise::command(slash_command, prefix_command)]
 async fn nixos(
     ctx: Context<'_>,
-    #[description = "Your opinion about NixOS"] opinion: String,
+    #[rest]
+    #[description = "Your opinion about NixOS"]
+    opinion: String,
 ) -> Result<(), Error> {
     let res = HTTP_CLIENT.post("https://api.groq.com/openai/v1/chat/completions")
         .header("Authorization", format!("Bearer {}", std::env::var("GROQ_API_KEY").unwrap()))
