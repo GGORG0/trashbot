@@ -39,7 +39,7 @@ async fn main() {
                 case_insensitive_commands: true,
                 dynamic_prefix: Some(|ctx| {
                     Box::pin(async move {
-                        // Mentions are <@USER_ID>, with Matrix clients appending ":" to the end
+                        // Mentions are <@USER_ID>, with Matrix clients appending "\:" to the end
                         Ok(Some(format!("<@{}>\\:", ctx.framework.bot_id)))
                     })
                 }),
