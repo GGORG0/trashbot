@@ -72,5 +72,10 @@ async fn main() {
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
         .await;
-    client.unwrap().start().await.unwrap();
+
+    tokio::spawn(async move {
+        client.unwrap().start().await.unwrap();
+    });
+
+    tokio::signal::ctrl_c().await.unwrap();
 }
