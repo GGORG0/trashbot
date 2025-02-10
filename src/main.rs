@@ -1,14 +1,16 @@
 mod fun;
 mod misc;
 mod moderation;
+mod vcping;
 
 use fun::*;
 use misc::*;
 use moderation::*;
+use vcping::*;
 
 use dotenv::dotenv;
 use once_cell::sync::{Lazy, OnceCell};
-use poise::serenity_prelude::{self as serenity, ActivityData, CacheHttp, GuildId};
+use poise::serenity_prelude::{self as serenity, ActivityData, CacheHttp, FullEvent, GuildId};
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, (), Error>;
@@ -23,7 +25,15 @@ async fn main() {
     let token = std::env::var("TOKEN").expect("missing TOKEN");
     let intents = serenity::GatewayIntents::non_privileged();
 
-    let commands = vec![help(), register(), uptime(), purge(), ping(), nixos()];
+    let commands = vec![
+        help(),
+        register(),
+        uptime(),
+        purge(),
+        ping(),
+        nixos(),
+        vcping(),
+    ];
 
     let framework = poise::Framework::builder()
         .options(poise::FrameworkOptions {
@@ -39,6 +49,9 @@ async fn main() {
                 }),
                 ..Default::default()
             },
+            event_handler: |ctx, event, framework, data| {
+                Box::pin(event_handler(ctx, event, framework, data))
+            },
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {
@@ -47,35 +60,50 @@ async fn main() {
                 poise::builtins::register_in_guild(ctx, &framework.options().commands, guild_id)
                     .await?;
 
-                let user = ctx.http.get_current_user().await?;
-                println!(
-                    "Bot is ready as: {}#{}",
-                    user.name,
-                    user.discriminator.unwrap()
-                );
-
-                println!(
-                    "{} commands registered to guild {}",
-                    framework.options().commands.len(),
-                    guild_id.name(ctx.cache().unwrap()).unwrap()
-                );
-
-                ctx.set_activity(Some(ActivityData::custom("🗑️")));
-
-                STARTUP_TIME.set(std::time::Instant::now()).unwrap();
-
                 Ok(())
             })
         })
         .build();
 
-    let client = serenity::ClientBuilder::new(token, intents)
+    let mut client = serenity::ClientBuilder::new(token, intents)
         .framework(framework)
-        .await;
+        .await
+        .unwrap();
 
     tokio::spawn(async move {
-        client.unwrap().start().await.unwrap();
+        client.start().await.unwrap();
     });
 
     tokio::signal::ctrl_c().await.unwrap();
+}
+
+async fn event_handler(
+    ctx: &serenity::Context,
+    event: &serenity::FullEvent,
+    framework: poise::FrameworkContext<'_, (), Error>,
+    _data: &(),
+) -> Result<(), Error> {
+    match event {
+        FullEvent::Ready { data_about_bot, .. } => {
+            let user = data_about_bot.user.clone();
+            println!("Bot is ready as: {}", user.tag());
+
+            let guild_id: GuildId = std::env::var("GUILD_ID").unwrap().parse().unwrap();
+            println!(
+                "{} commands registered to guild {}",
+                framework.options().commands.len(),
+                guild_id.name(ctx.cache().unwrap()).unwrap()
+            );
+
+            ctx.set_activity(Some(ActivityData::custom("🗑️")));
+
+            STARTUP_TIME.set(std::time::Instant::now()).unwrap();
+
+            Ok(())
+        }
+        FullEvent::VoiceStateUpdate { old, new, .. } => {
+            voice_state_update_handler(ctx, old, new).await
+        }
+        _ => Ok(()),
+    }
 }
