@@ -9,7 +9,7 @@ RUN apk add clang lld
 RUN cargo install cargo-chef 
 WORKDIR /app
 
-FROM chef as depcacher
+FROM chef AS depcacher
 COPY . .
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo fetch
