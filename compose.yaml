@@ -1,7 +1,8 @@
 services:
   trashbot:
+    image: ghcr.io/ggorg0/trashbot:master
+    pull_policy: always
     build:
       context: .
-      dockerfile: Dockerfile
     env_file: .env
     restart: unless-stopped

@@ -42,5 +42,5 @@ RUN mkdir -p /app/target/release
 RUN cp target/$(xx-cargo --print-target-triple)/release/trashbot /app/target/release
 
 FROM scratch AS runtime
-COPY --from=builder /app/target/release/trashbot /usr/local/bin
-ENTRYPOINT ["/usr/local/bin/trashbot"]
+COPY --from=builder /app/target/release/trashbot /trashbot
+ENTRYPOINT ["/trashbot"]
