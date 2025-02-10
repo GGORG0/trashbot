@@ -1,9 +1,5 @@
-use std::time::Duration;
-
-use poise::serenity_prelude::GetMessages;
-use tokio::time::sleep;
-
 use crate::{Context, Error};
+use poise::{serenity_prelude::GetMessages, CreateReply};
 
 /// Purges a number of messages from the channel.
 #[poise::command(
@@ -35,9 +31,13 @@ pub async fn purge(
         .delete_messages(ctx.http(), message_ids)
         .await?;
 
-    let msg = ctx.say(":fire: Deleted messages!").await?;
-    sleep(Duration::from_secs(5)).await;
-    msg.delete(ctx).await?;
+    ctx.send(
+        CreateReply::default()
+            .content(format!(":fire: Deleted {} messages!", number))
+            .reply(true)
+            .ephemeral(true),
+    )
+    .await?;
 
     Ok(())
 }

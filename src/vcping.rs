@@ -1,6 +1,7 @@
 use crate::{Context, Error};
 use poise::serenity_prelude::{self as serenity, CacheHttp, Mentionable, RoleId};
 use poise::serenity_prelude::{ChannelId, VoiceState};
+use poise::CreateReply;
 
 // TODO: add caching everywhere
 
@@ -17,14 +18,21 @@ pub async fn vcping(ctx: Context<'_>) -> Result<(), Error> {
 
     let member = ctx.author_member().await.unwrap().into_owned();
 
-    if member.roles.contains(&role) {
+    let reply = if member.roles.contains(&role) {
         member.remove_role(&ctx.http(), role).await?;
-        ctx.say(":fire: Unsubscribed from voice channel pings!")
-            .await?;
+        ":fire: Unsubscribed from voice channel pings!"
     } else {
         member.add_role(&ctx.http(), role).await?;
-        ctx.say(":fire: Subscribed to voice channel pings!").await?;
-    }
+        ":fire: Subscribed to voice channel pings!"
+    };
+
+    ctx.send(
+        CreateReply::default()
+            .content(reply)
+            .reply(true)
+            .ephemeral(true),
+    )
+    .await?;
 
     Ok(())
 }
