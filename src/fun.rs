@@ -66,9 +66,9 @@ pub async fn nixos(
         if let Some(member) = ctx.author_member().await {
             let mut member = member.into_owned();
 
-            member
+            let _ = member
                 .disable_communication_until_datetime(&ctx.http(), ts)
-                .await?;
+                .await;
         }
     }
 
