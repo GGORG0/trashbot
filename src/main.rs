@@ -3,6 +3,7 @@ mod misc;
 mod moderation;
 mod vcping;
 
+use async_openai::config::OpenAIConfig;
 use fun::*;
 use misc::*;
 use moderation::*;
@@ -17,6 +18,13 @@ type Context<'a> = poise::Context<'a, (), Error>;
 
 static STARTUP_TIME: OnceCell<std::time::Instant> = OnceCell::new();
 static HTTP_CLIENT: Lazy<reqwest::Client> = Lazy::new(reqwest::Client::new);
+static OPENAI_CLIENT: Lazy<async_openai::Client<OpenAIConfig>> = Lazy::new(|| {
+    async_openai::Client::build(
+        HTTP_CLIENT.clone(),
+        OpenAIConfig::default().with_api_base(std::env::var("OPENAI_API_BASE").unwrap()),
+        Default::default(),
+    )
+});
 
 #[tokio::main]
 async fn main() {
