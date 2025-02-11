@@ -21,7 +21,7 @@ pub async fn register(ctx: Context<'_>) -> Result<(), Error> {
 /// Get the bot's uptime.
 #[poise::command(slash_command, prefix_command)]
 pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.say(format!(
+    ctx.reply(format!(
         ":fire: Uptime: {:?}",
         STARTUP_TIME.get().unwrap().elapsed()
     ))
@@ -33,7 +33,7 @@ pub async fn uptime(ctx: Context<'_>) -> Result<(), Error> {
 /// Get the bot's gateway latency.
 #[poise::command(slash_command, prefix_command)]
 pub async fn ping(ctx: Context<'_>) -> Result<(), Error> {
-    ctx.say(format!(":fire: Ping: {:?}", ctx.ping().await))
+    ctx.reply(format!(":fire: Ping: {:?}", ctx.ping().await))
         .await?;
 
     Ok(())

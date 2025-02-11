@@ -9,7 +9,7 @@ use poise::CreateReply;
 #[poise::command(slash_command, prefix_command)]
 pub async fn vcping(ctx: Context<'_>) -> Result<(), Error> {
     if ctx.author().bot {
-        ctx.say(":fire: As a Matrix user, please add \"vc-ping\" to your notification keywords!")
+        ctx.reply(":fire: As a Matrix user, please add \"vc-ping\" to your notification keywords!")
             .await?;
         return Ok(());
     }
