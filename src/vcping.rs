@@ -1,7 +1,16 @@
 use crate::{Context, Error};
-use poise::serenity_prelude::{self as serenity, CacheHttp, Mentionable, RoleId};
+use once_cell::sync::Lazy;
+use poise::serenity_prelude::{
+    self as serenity, CacheHttp, EditMember, MemberRef, Mentionable, RoleId, UserId,
+};
 use poise::serenity_prelude::{ChannelId, VoiceState};
 use poise::CreateReply;
+use std::collections::HashMap;
+use std::mem;
+use std::sync::Mutex;
+
+pub static JOIN_HISTORY: Lazy<Mutex<HashMap<u64, std::time::Instant>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 // TODO: add caching everywhere
 
@@ -37,6 +46,42 @@ pub async fn vcping(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+/// Give someone parental control.
+#[poise::command(slash_command, prefix_command)]
+pub async fn parental_control(
+    ctx: Context<'_>,
+    #[rest]
+    #[description = "Your opinion about NixOS"]
+    user: UserId,
+) -> Result<(), Error> {
+    println!("parental control for {}", user);
+
+    let role: RoleId = std::env::var("PARENTAL_CONTROL_ROLE_ID")
+        .unwrap()
+        .parse()
+        .unwrap();
+
+    let member = ctx.guild_id().unwrap().member(&ctx.http(), user).await?;
+
+    let reply: &str = if member.roles.contains(&role) {
+        member.remove_role(&ctx.http(), role).await?;
+        ":fire: Removed parental control!"
+    } else {
+        member.add_role(&ctx.http(), role).await?;
+        ":fire: Added parental control!"
+    };
+
+    ctx.send(
+        CreateReply::default()
+            .content(reply)
+            .reply(true)
+            .ephemeral(true),
+    )
+    .await?;
+
+    Ok(())
+}
+
 pub async fn voice_state_update_handler(
     ctx: &serenity::Context,
     old: &Option<VoiceState>,
@@ -47,33 +92,64 @@ pub async fn voice_state_update_handler(
         None => new.channel_id.is_some(),
     };
 
-    if !joined {
-        return Ok(());
+    let last_interaction = JOIN_HISTORY
+        .lock()
+        .unwrap()
+        .get(&new.member.clone().unwrap().user.id.get())
+        .copied();
+
+    match last_interaction {
+        Some(last_interaction) => {
+            if last_interaction.elapsed() < std::time::Duration::from_secs(30) {
+                return Ok(());
+            }
+        }
+        None => (),
     }
 
-    let members = new
-        .channel_id
-        .unwrap()
-        .to_channel(ctx.http())
-        .await
-        .unwrap()
-        .guild()
-        .unwrap()
-        .members(ctx.cache().unwrap())
-        .unwrap();
-
-    if members.len() > 1 {
-        return Ok(());
-    }
+    let leave = match old {
+        Some(old) => old.channel_id.is_some() && new.channel_id.is_none(),
+        None => false,
+    };
 
     let role: RoleId = std::env::var("VCPING_ROLE_ID").unwrap().parse().unwrap();
 
-    let message = format!(
-        ":fire: {}, {} joined empty voice channel: {}!",
-        role.mention(),
-        new.member.clone().unwrap().user.tag(),
-        new.channel_id.unwrap().name(ctx.http()).await.unwrap()
-    );
+    let message = if leave {
+        match old {
+            Some(old) => {
+                format!(
+                    ":fire: {}, {} has left the channel: {} at {}!",
+                    role.mention(),
+                    new.member.clone().unwrap().user.tag(),
+                    old.channel_id.unwrap().name(ctx.http()).await.unwrap(),
+                    chrono::Local::now().format("%H:%M:%S").to_string()
+                )
+            }
+            None => "idk".to_string(),
+        }
+    } else {
+        let members = new
+            .channel_id
+            .unwrap()
+            .to_channel(ctx.http())
+            .await
+            .unwrap()
+            .guild()
+            .unwrap()
+            .members(ctx.cache().unwrap())
+            .unwrap();
+
+        if members.len() > 1 {
+            return Ok(());
+        }
+
+        format!(
+            ":fire: {}, {} joined empty voice channel: {}!",
+            role.mention(),
+            new.member.clone().unwrap().user.tag(),
+            new.channel_id.unwrap().name(ctx.http()).await.unwrap()
+        )
+    };
 
     let channel: ChannelId = std::env::var("VCPING_CHANNEL_ID").unwrap().parse().unwrap();
 
@@ -84,6 +160,11 @@ pub async fn voice_state_update_handler(
     let channel = channels.get(&channel).unwrap();
 
     channel.say(ctx.http(), message).await?;
+
+    JOIN_HISTORY.lock().unwrap().insert(
+        new.member.clone().unwrap().user.id.get(),
+        std::time::Instant::now(),
+    );
 
     Ok(())
 }

@@ -41,6 +41,7 @@ async fn main() {
         ping(),
         nixos(),
         vcping(),
+        parental_control(),
     ];
 
     let framework = poise::Framework::builder()
