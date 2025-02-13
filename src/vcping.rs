@@ -1,6 +1,6 @@
 use crate::{leaderboard, Context, Error};
 use once_cell::sync::Lazy;
-use poise::serenity_prelude::{self as serenity, CacheHttp, Mentionable, RoleId, UserId};
+use poise::serenity_prelude::{self as serenity, CacheHttp, Mentionable, RoleId};
 use poise::serenity_prelude::{ChannelId, VoiceState};
 use poise::CreateReply;
 use std::collections::HashMap;
@@ -33,42 +33,6 @@ pub async fn vcping(ctx: Context<'_>) -> Result<(), Error> {
     } else {
         member.add_role(&ctx.http(), role).await?;
         ":fire: Subscribed to voice channel pings!"
-    };
-
-    ctx.send(
-        CreateReply::default()
-            .content(reply)
-            .reply(true)
-            .ephemeral(true),
-    )
-    .await?;
-
-    Ok(())
-}
-
-/// Give someone parental control.
-#[poise::command(slash_command, prefix_command)]
-pub async fn parental_control(
-    ctx: Context<'_>,
-    #[rest]
-    #[description = "Give someone (or youtself) parental control"]
-    user: UserId,
-) -> Result<(), Error> {
-    println!("parental control for {}", user);
-
-    let role: RoleId = std::env::var("PARENTAL_CONTROL_ROLE_ID")
-        .unwrap()
-        .parse()
-        .unwrap();
-
-    let member = ctx.guild_id().unwrap().member(&ctx.http(), user).await?;
-
-    let reply: &str = if member.roles.contains(&role) {
-        member.remove_role(&ctx.http(), role).await?;
-        ":fire: Removed parental control!"
-    } else {
-        member.add_role(&ctx.http(), role).await?;
-        ":fire: Added parental control!"
     };
 
     ctx.send(

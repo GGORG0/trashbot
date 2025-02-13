@@ -4,6 +4,7 @@ mod misc;
 mod models;
 mod moderation;
 mod mongo_connection_provider;
+mod parental_control;
 mod vcping;
 
 use async_openai::config::OpenAIConfig;
@@ -11,6 +12,7 @@ use fun::*;
 use leaderboard::*;
 use misc::*;
 use moderation::*;
+use parental_control::*;
 use vcping::*;
 
 use dotenv::dotenv;
