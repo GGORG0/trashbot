@@ -1,11 +1,10 @@
-use crate::{Context, Error};
+use crate::{leaderboard, Context, Error};
 use once_cell::sync::Lazy;
 use poise::serenity_prelude::{self as serenity, CacheHttp, Mentionable, RoleId, UserId};
 use poise::serenity_prelude::{ChannelId, VoiceState};
 use poise::CreateReply;
 use std::collections::HashMap;
-use std::mem;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 
 pub static INTERACTION_HISTORY: Lazy<Mutex<HashMap<u64, std::time::Instant>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -90,15 +89,9 @@ pub async fn voice_state_update_handler(
 ) -> Result<(), Error> {
     let last_interaction = INTERACTION_HISTORY
         .lock()
-        .unwrap()
+        .await
         .get(&new.member.clone().unwrap().user.id.get())
         .copied();
-
-    if let Some(last_interaction) = last_interaction {
-        if last_interaction.elapsed() < std::time::Duration::from_secs(30) {
-            return Ok(());
-        }
-    }
 
     let leave = match old {
         Some(old) => old.channel_id.is_some() && new.channel_id.is_none(),
@@ -108,6 +101,22 @@ pub async fn voice_state_update_handler(
     let role: RoleId = std::env::var("VCPING_ROLE_ID").unwrap().parse().unwrap();
 
     let message = if leave {
+        {
+            let history = JOIN_HISTORY.lock();
+
+            if let Some(joined_at) = history
+                .await
+                .get(&new.member.clone().unwrap().user.id.get())
+            {
+                leaderboard::increment_user_time(
+                    new.member.clone().unwrap().user.id.get(),
+                    new.guild_id.clone().unwrap().get(),
+                    joined_at.elapsed().as_secs(),
+                )
+                .await?;
+            }
+        }
+
         match old {
             Some(old) => {
                 format!(
@@ -121,6 +130,11 @@ pub async fn voice_state_update_handler(
             None => "idk".to_string(),
         }
     } else {
+        JOIN_HISTORY.lock().await.insert(
+            new.member.clone().unwrap().user.id.get(),
+            std::time::Instant::now(),
+        );
+
         let members = new
             .channel_id
             .unwrap()
@@ -144,6 +158,12 @@ pub async fn voice_state_update_handler(
         )
     };
 
+    if let Some(last_interaction) = last_interaction {
+        if last_interaction.elapsed() < std::time::Duration::from_secs(30) {
+            return Ok(());
+        }
+    }
+
     let channel: ChannelId = std::env::var("VCPING_CHANNEL_ID").unwrap().parse().unwrap();
 
     let member = new.member.clone().unwrap();
@@ -154,7 +174,7 @@ pub async fn voice_state_update_handler(
 
     channel.say(ctx.http(), message).await?;
 
-    INTERACTION_HISTORY.lock().unwrap().insert(
+    INTERACTION_HISTORY.lock().await.insert(
         new.member.clone().unwrap().user.id.get(),
         std::time::Instant::now(),
     );

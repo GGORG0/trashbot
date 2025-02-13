@@ -1,6 +1,7 @@
 mod fun;
 mod leaderboard;
 mod misc;
+mod models;
 mod moderation;
 mod mongo_connection_provider;
 mod vcping;
@@ -13,7 +14,6 @@ use moderation::*;
 use vcping::*;
 
 use dotenv::dotenv;
-use mongodb::bson::doc;
 use once_cell::sync::{Lazy, OnceCell};
 use poise::serenity_prelude::{self as serenity, ActivityData, CacheHttp, FullEvent, GuildId};
 
@@ -42,14 +42,6 @@ async fn main() {
     mongo_connection_provider::init(uri, db_name)
         .await
         .expect("Failed to initialize MongoDB connection");
-
-    let db = mongo_connection_provider::get_db();
-
-    let document = doc! {
-        "fuck": "nixos"
-    };
-
-    let insert_result = db.collection("niggers").insert_one(document.clone()).await;
 
     let commands = vec![
         help(),
