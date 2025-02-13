@@ -1,13 +1,14 @@
 use crate::{Context, Error};
 use once_cell::sync::Lazy;
-use poise::serenity_prelude::{
-    self as serenity, CacheHttp, EditMember, MemberRef, Mentionable, RoleId, UserId,
-};
+use poise::serenity_prelude::{self as serenity, CacheHttp, Mentionable, RoleId, UserId};
 use poise::serenity_prelude::{ChannelId, VoiceState};
 use poise::CreateReply;
 use std::collections::HashMap;
 use std::mem;
 use std::sync::Mutex;
+
+pub static INTERACTION_HISTORY: Lazy<Mutex<HashMap<u64, std::time::Instant>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 pub static JOIN_HISTORY: Lazy<Mutex<HashMap<u64, std::time::Instant>>> =
     Lazy::new(|| Mutex::new(HashMap::new()));
@@ -51,7 +52,7 @@ pub async fn vcping(ctx: Context<'_>) -> Result<(), Error> {
 pub async fn parental_control(
     ctx: Context<'_>,
     #[rest]
-    #[description = "Your opinion about NixOS"]
+    #[description = "Give someone (or youtself) parental control"]
     user: UserId,
 ) -> Result<(), Error> {
     println!("parental control for {}", user);
@@ -87,24 +88,16 @@ pub async fn voice_state_update_handler(
     old: &Option<VoiceState>,
     new: &VoiceState,
 ) -> Result<(), Error> {
-    let joined = match old {
-        Some(old) => old.channel_id.is_none() && new.channel_id.is_some(),
-        None => new.channel_id.is_some(),
-    };
-
-    let last_interaction = JOIN_HISTORY
+    let last_interaction = INTERACTION_HISTORY
         .lock()
         .unwrap()
         .get(&new.member.clone().unwrap().user.id.get())
         .copied();
 
-    match last_interaction {
-        Some(last_interaction) => {
-            if last_interaction.elapsed() < std::time::Duration::from_secs(30) {
-                return Ok(());
-            }
+    if let Some(last_interaction) = last_interaction {
+        if last_interaction.elapsed() < std::time::Duration::from_secs(30) {
+            return Ok(());
         }
-        None => (),
     }
 
     let leave = match old {
@@ -161,7 +154,7 @@ pub async fn voice_state_update_handler(
 
     channel.say(ctx.http(), message).await?;
 
-    JOIN_HISTORY.lock().unwrap().insert(
+    INTERACTION_HISTORY.lock().unwrap().insert(
         new.member.clone().unwrap().user.id.get(),
         std::time::Instant::now(),
     );

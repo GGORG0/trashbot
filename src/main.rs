@@ -1,15 +1,19 @@
 mod fun;
+mod leaderboard;
 mod misc;
 mod moderation;
+mod mongo_connection_provider;
 mod vcping;
 
 use async_openai::config::OpenAIConfig;
 use fun::*;
+use leaderboard::*;
 use misc::*;
 use moderation::*;
 use vcping::*;
 
 use dotenv::dotenv;
+use mongodb::bson::doc;
 use once_cell::sync::{Lazy, OnceCell};
 use poise::serenity_prelude::{self as serenity, ActivityData, CacheHttp, FullEvent, GuildId};
 
@@ -33,6 +37,20 @@ async fn main() {
     let token = std::env::var("TOKEN").expect("missing TOKEN");
     let intents = serenity::GatewayIntents::non_privileged();
 
+    let uri = "mongodb://localhost:27017";
+    let db_name = "garbageDump";
+    mongo_connection_provider::init(uri, db_name)
+        .await
+        .expect("Failed to initialize MongoDB connection");
+
+    let db = mongo_connection_provider::get_db();
+
+    let document = doc! {
+        "fuck": "nixos"
+    };
+
+    let insert_result = db.collection("niggers").insert_one(document.clone()).await;
+
     let commands = vec![
         help(),
         register(),
@@ -42,6 +60,8 @@ async fn main() {
         nixos(),
         vcping(),
         parental_control(),
+        leaderboard(),
+        set_leaderboard_channel(),
     ];
 
     let framework = poise::Framework::builder()
