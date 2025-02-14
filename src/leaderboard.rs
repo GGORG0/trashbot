@@ -1,7 +1,8 @@
+use crate::models::leaderboard::Leaderboard;
 use crate::{models::voice_time::VoiceTime, mongo_connection_provider, Context, Error};
 use mongodb::bson::doc;
 use poise::futures_util::TryStreamExt;
-use poise::serenity_prelude::CreateMessage;
+use poise::serenity_prelude::{http, ChannelId, CreateMessage, MessageId};
 use poise::{
     serenity_prelude::{Channel, CreateEmbed},
     CreateReply,
@@ -21,13 +22,9 @@ pub async fn get_leaderboard(ctx: Context<'_>) -> Result<CreateEmbed, Error> {
         .limit(10)
         .await?;
 
-    // while data.advance().await? {
-    //     println!("{:?}", data.deserialize_current()?);
-    // }
-
     let data_vec: Vec<VoiceTime> = data.try_collect().await?;
 
-    dbg!(&data_vec);
+    // dbg!(&data_vec);
 
     let podiuim = data_vec
         .iter()
@@ -82,20 +79,41 @@ pub async fn set_leaderboard_channel(
 
     let guild_channel = channels.get(&channel.id()).unwrap();
 
+    let db = mongo_connection_provider::get_db();
+
+    let query = doc! {
+        "guild_id": ctx.guild_id().unwrap().get() as i64,
+    };
+
+    let existing_leaderboard = db
+        .collection::<Leaderboard>("leaderboard")
+        .find_one(query.clone())
+        .await?;
+
+    if let Some(leaderboard) = existing_leaderboard {
+        let channel_id = ChannelId::new(leaderboard.channel_id as u64);
+        let message_id = MessageId::new(leaderboard.message as u64);
+        channel_id.delete_message(&ctx.http(), message_id).await?;
+    }
+
     let embed = get_leaderboard(ctx.clone()).await;
 
     let message = CreateMessage::default().embed(embed.unwrap());
 
+    //wiadomosc wyslana na kana;
     let sent_message = guild_channel.send_message(ctx.http(), message).await?;
 
-    let db = mongo_connection_provider::get_db();
-
-    let query = doc! {
-        "guild_id": ctx.guild_id().unwrap().get() as i64
+    let update = doc! {
+        "$set": {
+            "message": sent_message.id.get() as i64,
+            "channel_id": guild_channel.id.get() as i64,
+        },
     };
 
-    // db.collection("leaderboards")
-    //     .find_one_and_update(query)
+    db.collection::<Leaderboard>("leaderboard")
+        .find_one_and_update(query.clone(), update)
+        .upsert(true)
+        .await?;
 
     ctx.send(
         CreateReply::default()

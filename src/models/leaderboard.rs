@@ -7,4 +7,5 @@ pub struct Leaderboard {
     pub _id: Option<ObjectId>,
     pub guild_id: i64,
     pub message: i64,
+    pub channel_id: i64,
 }
