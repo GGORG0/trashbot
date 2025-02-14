@@ -1,4 +1,6 @@
-use crate::{leaderboard, Context, Error};
+use crate::models::vcping_settings::VcpingSettings;
+use crate::{leaderboard, mongo_connection_provider, Context, Error};
+use mongodb::bson::doc;
 use once_cell::sync::Lazy;
 use poise::serenity_prelude::{self as serenity, CacheHttp, Mentionable, RoleId};
 use poise::serenity_prelude::{ChannelId, VoiceState};
@@ -51,6 +53,23 @@ pub async fn voice_state_update_handler(
     old: &Option<VoiceState>,
     new: &VoiceState,
 ) -> Result<(), Error> {
+    let db = mongo_connection_provider::get_db();
+
+    let vcping_settings = db
+        .collection::<VcpingSettings>("vcping_settings")
+        .find_one(doc! {
+            "guild_id": new.guild_id.clone().unwrap().get() as i64,
+        })
+        .await?;
+
+    if vcping_settings.is_none() {
+        println!(
+            "No vcping settings found for guild {}",
+            new.guild_id.clone().unwrap().get()
+        );
+        return Ok(());
+    }
+
     let last_interaction = INTERACTION_HISTORY
         .lock()
         .await
@@ -62,7 +81,7 @@ pub async fn voice_state_update_handler(
         None => false,
     };
 
-    let role: RoleId = std::env::var("VCPING_ROLE_ID").unwrap().parse().unwrap();
+    let role: RoleId = RoleId::from(vcping_settings.as_ref().unwrap().role_id as u64);
 
     let message = if leave {
         {
@@ -128,12 +147,11 @@ pub async fn voice_state_update_handler(
         }
     }
 
-    let channel: ChannelId = std::env::var("VCPING_CHANNEL_ID").unwrap().parse().unwrap();
+    let channel: ChannelId = ChannelId::from(vcping_settings.as_ref().unwrap().channel_id as u64);
 
     let member = new.member.clone().unwrap();
 
     let channels = member.guild_id.channels(&ctx.http()).await.unwrap();
-
     let channel = channels.get(&channel).unwrap();
 
     channel.say(ctx.http(), message).await?;

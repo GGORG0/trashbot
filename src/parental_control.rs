@@ -2,10 +2,10 @@ use crate::{Context, Error};
 
 use std::collections::HashMap;
 
-use poise::serenity_prelude::{Member, Role, RoleId, UserId};
+use poise::serenity_prelude::{Http, Member, Role, RoleId, Timestamp, UserId};
 
+use chrono::{Duration, NaiveTime, Utc};
 use poise::CreateReply;
-
 fn highest_role_pos(member: &Member, roles: &HashMap<RoleId, Role>) -> u16 {
     member
         .roles
@@ -68,3 +68,12 @@ pub async fn parental_control(
 
     Ok(())
 }
+
+// pub async fn parental_timeout(http: &Http, member: &Member) {
+//     let now = Utc::now();
+//     let planned_date = now.with_hour(6);
+//     let planned_date: Timestamp = planned_date + Duration::days(1);
+//     member
+//         .disable_communication_until_datetime(http, planned_date)
+//         .await;
+// }

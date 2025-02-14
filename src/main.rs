@@ -6,6 +6,7 @@ mod moderation;
 mod mongo_connection_provider;
 mod parental_control;
 mod vcping;
+mod vcping_setup;
 
 use async_openai::config::OpenAIConfig;
 use fun::*;
@@ -14,6 +15,7 @@ use misc::*;
 use moderation::*;
 use parental_control::*;
 use vcping::*;
+use vcping_setup::*;
 
 use dotenv::dotenv;
 use once_cell::sync::{Lazy, OnceCell};
@@ -56,6 +58,7 @@ async fn main() {
         parental_control(),
         leaderboard(),
         set_leaderboard_channel(),
+        vcping_setup(),
     ];
 
     let framework = poise::Framework::builder()
