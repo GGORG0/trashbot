@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use poise::serenity_prelude::{Http, Member, Role, RoleId, Timestamp, UserId};
 
-use chrono::{Duration, NaiveTime, Utc};
+use chrono::{DateTime, Duration, Timelike, Utc};
 use poise::CreateReply;
 fn highest_role_pos(member: &Member, roles: &HashMap<RoleId, Role>) -> u16 {
     member
@@ -69,11 +69,15 @@ pub async fn parental_control(
     Ok(())
 }
 
-// pub async fn parental_timeout(http: &Http, member: &Member) {
-//     let now = Utc::now();
-//     let planned_date = now.with_hour(6);
-//     let planned_date: Timestamp = planned_date + Duration::days(1);
-//     member
-//         .disable_communication_until_datetime(http, planned_date)
-//         .await;
-// }
+pub async fn parental_timeout(http: &Http, member: &mut Member) {
+    let now: DateTime<Utc> = Utc::now();
+    let mut planned_date = now.with_hour(6).unwrap().with_minute(0).unwrap().with_second(0).unwrap().with_nanosecond(0).unwrap();
+    planned_date = if now > planned_date {
+        planned_date + Duration::days(1)
+    } else {
+        planned_date
+    };
+    let _ = member
+        .disable_communication_until_datetime(http, Timestamp::from(planned_date))
+        .await;
+}

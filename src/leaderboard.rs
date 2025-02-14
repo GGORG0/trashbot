@@ -2,17 +2,17 @@ use crate::models::leaderboard::Leaderboard;
 use crate::{models::voice_time::VoiceTime, mongo_connection_provider, Context, Error};
 use mongodb::bson::doc;
 use poise::futures_util::TryStreamExt;
-use poise::serenity_prelude::{http, ChannelId, CreateMessage, MessageId};
+use poise::serenity_prelude::{ChannelId, CreateMessage, EditMessage, Http, MessageId};
 use poise::{
     serenity_prelude::{Channel, CreateEmbed},
     CreateReply,
 };
 
-pub async fn get_leaderboard(ctx: Context<'_>) -> Result<CreateEmbed, Error> {
+pub async fn get_leaderboard(guild_id: u64) -> Result<CreateEmbed, Error> {
     let db = mongo_connection_provider::get_db();
 
     let query = doc! {
-        "guild_id": ctx.guild_id().unwrap().get() as i64
+        "guild_id": guild_id as i64
     };
 
     let data = db
@@ -60,10 +60,35 @@ pub async fn get_leaderboard(ctx: Context<'_>) -> Result<CreateEmbed, Error> {
 /// Print Leaderboard
 #[poise::command(slash_command, prefix_command)]
 pub async fn leaderboard(ctx: Context<'_>) -> Result<(), Error> {
-    let ranking = get_leaderboard(ctx.clone()).await?;
+    let ranking = get_leaderboard(ctx.clone().guild_id().unwrap().get()).await?;
 
     ctx.send(CreateReply::default().reply(true).embed(ranking))
         .await?;
+    Ok(())
+}
+
+pub async fn update_leaderboard(guild_id: u64, http: &Http) -> Result<(), Error> {
+    let ranking = get_leaderboard(guild_id).await?;
+
+    let db = mongo_connection_provider::get_db();
+
+    let query = doc! {
+        "guild_id": guild_id as i64,
+    };
+
+    let database_leaderboard = db
+        .collection::<Leaderboard>("leaderboard")
+        .find_one(query)
+        .await?;
+
+    if let Some(leaderboard) = database_leaderboard {
+        let channel_id = ChannelId::new(leaderboard.channel_id as u64);
+        let message_id = MessageId::new(leaderboard.message as u64);
+        channel_id
+            .edit_message(http, message_id, EditMessage::default().embed(ranking))
+            .await?;
+    }
+
     Ok(())
 }
 
@@ -96,7 +121,7 @@ pub async fn set_leaderboard_channel(
         channel_id.delete_message(&ctx.http(), message_id).await?;
     }
 
-    let embed = get_leaderboard(ctx.clone()).await;
+    let embed = get_leaderboard(ctx.clone().guild_id().unwrap().get()).await;
 
     let message = CreateMessage::default().embed(embed.unwrap());
 
@@ -130,6 +155,7 @@ pub async fn increment_user_time(
     user_id: u64,
     guild_id: u64,
     time: u64,
+    http: &Http,
 ) -> Result<(), mongodb::error::Error> {
     println!("incrementing user {} by {}", user_id, time);
 
@@ -151,5 +177,6 @@ pub async fn increment_user_time(
         .upsert(true)
         .await?;
 
+    update_leaderboard(guild_id, http).await;
     Ok(())
 }

@@ -62,14 +62,6 @@ pub async fn voice_state_update_handler(
         })
         .await?;
 
-    if vcping_settings.is_none() {
-        println!(
-            "No vcping settings found for guild {}",
-            new.guild_id.clone().unwrap().get()
-        );
-        return Ok(());
-    }
-
     let last_interaction = INTERACTION_HISTORY
         .lock()
         .await
@@ -83,34 +75,20 @@ pub async fn voice_state_update_handler(
 
     let role: RoleId = RoleId::from(vcping_settings.as_ref().unwrap().role_id as u64);
 
-    let message = if leave {
+    if leave {
+        let history = JOIN_HISTORY.lock();
+
+        if let Some(joined_at) = history
+            .await
+            .get(&new.member.clone().unwrap().user.id.get())
         {
-            let history = JOIN_HISTORY.lock();
-
-            if let Some(joined_at) = history
-                .await
-                .get(&new.member.clone().unwrap().user.id.get())
-            {
-                leaderboard::increment_user_time(
-                    new.member.clone().unwrap().user.id.get(),
-                    new.guild_id.clone().unwrap().get(),
-                    joined_at.elapsed().as_secs(),
-                )
-                .await?;
-            }
-        }
-
-        match old {
-            Some(old) => {
-                format!(
-                    ":fire: {}, {} has left the channel: {} at {}!",
-                    role.mention(),
-                    new.member.clone().unwrap().user.tag(),
-                    old.channel_id.unwrap().name(ctx.http()).await.unwrap(),
-                    chrono::Local::now().format("%H:%M:%S").to_string()
-                )
-            }
-            None => "idk".to_string(),
+            leaderboard::increment_user_time(
+                new.member.clone().unwrap().user.id.get(),
+                new.guild_id.clone().unwrap().get(),
+                joined_at.elapsed().as_secs(),
+                ctx.http(),
+            )
+            .await?;
         }
     } else {
         JOIN_HISTORY.lock().await.insert(
@@ -133,28 +111,31 @@ pub async fn voice_state_update_handler(
             return Ok(());
         }
 
-        format!(
+        let message = format!(
             ":fire: {}, {} joined empty voice channel: {}!",
             role.mention(),
             new.member.clone().unwrap().user.tag(),
             new.channel_id.unwrap().name(ctx.http()).await.unwrap()
-        )
-    };
+        );
 
-    if let Some(last_interaction) = last_interaction {
-        if last_interaction.elapsed() < std::time::Duration::from_secs(30) {
-            return Ok(());
+        if let Some(last_interaction) = last_interaction {
+            if last_interaction.elapsed() < std::time::Duration::from_secs(30) {
+                return Ok(());
+            }
         }
-    }
 
-    let channel: ChannelId = ChannelId::from(vcping_settings.as_ref().unwrap().channel_id as u64);
+        if !vcping_settings.is_none() {
+            let channel: ChannelId =
+                ChannelId::from(vcping_settings.as_ref().unwrap().channel_id as u64);
 
-    let member = new.member.clone().unwrap();
+            let member = new.member.clone().unwrap();
 
-    let channels = member.guild_id.channels(&ctx.http()).await.unwrap();
-    let channel = channels.get(&channel).unwrap();
+            let channels = member.guild_id.channels(&ctx.http()).await.unwrap();
+            let channel = channels.get(&channel).unwrap();
 
-    channel.say(ctx.http(), message).await?;
+            channel.say(ctx.http(), message).await?;
+        }
+    };
 
     INTERACTION_HISTORY.lock().await.insert(
         new.member.clone().unwrap().user.id.get(),
