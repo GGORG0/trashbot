@@ -25,7 +25,19 @@ pub async fn vcping(ctx: Context<'_>) -> Result<(), Error> {
         return Ok(());
     }
 
-    let role: RoleId = std::env::var("VCPING_ROLE_ID").unwrap().parse().unwrap();
+    let db = mongo_connection_provider::get_db();
+
+    let query = doc! {
+        "guild_id": ctx.guild_id().unwrap().get() as i64,
+    };
+
+    let dbdata = db
+        .collection::<VcpingSettings>("vcping_settings")
+        .find_one(query)
+        .await?;
+
+    // let role: RoleId = std::env::var("VCPING_ROLE_ID").unwrap().parse().unwrap();
+    let role: RoleId = RoleId::from(dbdata.as_ref().unwrap().role_id as u64);
 
     let member = ctx.author_member().await.unwrap().into_owned();
 

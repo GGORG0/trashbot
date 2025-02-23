@@ -8,6 +8,8 @@ mod parental_control;
 mod vcping;
 mod vcping_setup;
 
+use std::ptr::null;
+
 use async_openai::config::OpenAIConfig;
 use fun::*;
 use leaderboard::*;
@@ -41,7 +43,9 @@ async fn main() {
     let token = std::env::var("TOKEN").expect("missing TOKEN");
     let intents = serenity::GatewayIntents::non_privileged();
 
-    let uri = std::env::var("DATABASE_URI").expect("missing DATABASE_URI");
+    let uri =
+        std::env::var("DATABASE_URI").unwrap_or_else(|_| "mongodb://localhost:27017".to_string());
+
     let db_name = "garbageDump";
     mongo_connection_provider::init(&uri, db_name)
         .await

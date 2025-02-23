@@ -15,6 +15,7 @@ fn highest_role_pos(member: &Member, roles: &HashMap<RoleId, Role>) -> u16 {
         .unwrap()
 }
 
+/// Give someone (or youtself) parental control
 #[poise::command(slash_command, prefix_command)]
 pub async fn parental_control(
     ctx: Context<'_>,
@@ -71,7 +72,15 @@ pub async fn parental_control(
 
 pub async fn parental_timeout(http: &Http, member: &mut Member) {
     let now: DateTime<Utc> = Utc::now();
-    let mut planned_date = now.with_hour(6).unwrap().with_minute(0).unwrap().with_second(0).unwrap().with_nanosecond(0).unwrap();
+    let mut planned_date = now
+        .with_hour(6)
+        .unwrap()
+        .with_minute(0)
+        .unwrap()
+        .with_second(0)
+        .unwrap()
+        .with_nanosecond(0)
+        .unwrap();
     planned_date = if now > planned_date {
         planned_date + Duration::days(1)
     } else {
