@@ -41,9 +41,9 @@ async fn main() {
     let token = std::env::var("TOKEN").expect("missing TOKEN");
     let intents = serenity::GatewayIntents::non_privileged();
 
-    let uri = "mongodb://localhost:27017";
+    let uri = std::env::var("DATABASE_URI").expect("missing DATABASE_URI");
     let db_name = "garbageDump";
-    mongo_connection_provider::init(uri, db_name)
+    mongo_connection_provider::init(&uri, db_name)
         .await
         .expect("Failed to initialize MongoDB connection");
 
@@ -75,17 +75,12 @@ async fn main() {
                 }),
                 ..Default::default()
             },
-            event_handler: |ctx, event, framework, data| {
-                Box::pin(event_handler(ctx, event, framework, data))
-            },
+            event_handler: |ctx, event, framework, data| Box::pin(event_handler(ctx, event, data)),
             ..Default::default()
         })
         .setup(|ctx, _ready, framework| {
             Box::pin(async move {
-                let guild_id: GuildId = std::env::var("GUILD_ID").unwrap().parse().unwrap();
-                poise::builtins::register_in_guild(ctx, &framework.options().commands, guild_id)
-                    .await?;
-
+                poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(())
             })
         })
@@ -106,7 +101,7 @@ async fn main() {
 async fn event_handler(
     ctx: &serenity::Context,
     event: &serenity::FullEvent,
-    framework: poise::FrameworkContext<'_, (), Error>,
+    // framework: poise::FrameworkContext<'_, (), Error>,
     _data: &(),
 ) -> Result<(), Error> {
     match event {
@@ -114,12 +109,12 @@ async fn event_handler(
             let user = data_about_bot.user.clone();
             println!("Bot is ready as: {}", user.tag());
 
-            let guild_id: GuildId = std::env::var("GUILD_ID").unwrap().parse().unwrap();
-            println!(
-                "{} commands registered to guild {}",
-                framework.options().commands.len(),
-                guild_id.name(ctx.cache().unwrap()).unwrap()
-            );
+            // let guild_id: GuildId = std::env::var("GUILD_ID").unwrap().parse().unwrap();
+            // println!(
+            //     "{} commands registered to guild {}",
+            //     framework.options().commands.len(),
+            //     guild_id.name(ctx.cache().unwrap()).unwrap()
+            // );
 
             ctx.set_activity(Some(ActivityData::custom("🗑️")));
 
