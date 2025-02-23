@@ -13,6 +13,6 @@ services:
         source: ./db
         target: /data/db
     ports:
-      - 27017:27017
+      - :27017
     restart: always
     user: 1000:1000
