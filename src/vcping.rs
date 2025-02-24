@@ -90,8 +90,6 @@ pub async fn voice_state_update_handler(
         None => new.channel_id.is_some(),
     };
 
-    let role: RoleId = RoleId::from(vcping_settings.as_ref().unwrap().role_id as u64);
-
     if leave {
         let history = JOIN_HISTORY.lock();
 
@@ -135,6 +133,7 @@ pub async fn voice_state_update_handler(
         }
 
         if !vcping_settings.is_none() {
+            let role: RoleId = RoleId::from(vcping_settings.as_ref().unwrap().role_id as u64);
             let message = format!(
                 ":fire: {}, {} joined empty voice channel: {}!",
                 role.mention(),
@@ -151,13 +150,13 @@ pub async fn voice_state_update_handler(
             let channel = channels.get(&channel).unwrap();
 
             channel.say(ctx.http(), message).await?;
+
+            INTERACTION_HISTORY.lock().await.insert(
+                new.member.clone().unwrap().user.id.get(),
+                std::time::Instant::now(),
+            );
         }
     };
-
-    INTERACTION_HISTORY.lock().await.insert(
-        new.member.clone().unwrap().user.id.get(),
-        std::time::Instant::now(),
-    );
 
     Ok(())
 }
