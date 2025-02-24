@@ -85,6 +85,11 @@ pub async fn voice_state_update_handler(
         None => false,
     };
 
+    let joined = match old {
+        Some(old) => old.channel_id.is_none() && new.channel_id.is_some(),
+        None => new.channel_id.is_some(),
+    };
+
     let role: RoleId = RoleId::from(vcping_settings.as_ref().unwrap().role_id as u64);
 
     if leave {
@@ -102,7 +107,7 @@ pub async fn voice_state_update_handler(
             )
             .await?;
         }
-    } else {
+    } else if joined {
         JOIN_HISTORY.lock().await.insert(
             new.member.clone().unwrap().user.id.get(),
             std::time::Instant::now(),
@@ -123,13 +128,6 @@ pub async fn voice_state_update_handler(
             return Ok(());
         }
 
-        let message = format!(
-            ":fire: {}, {} joined empty voice channel: {}!",
-            role.mention(),
-            new.member.clone().unwrap().user.tag(),
-            new.channel_id.unwrap().name(ctx.http()).await.unwrap()
-        );
-
         if let Some(last_interaction) = last_interaction {
             if last_interaction.elapsed() < std::time::Duration::from_secs(30) {
                 return Ok(());
@@ -137,6 +135,13 @@ pub async fn voice_state_update_handler(
         }
 
         if !vcping_settings.is_none() {
+            let message = format!(
+                ":fire: {}, {} joined empty voice channel: {}!",
+                role.mention(),
+                new.member.clone().unwrap().user.tag(),
+                new.channel_id.unwrap().name(ctx.http()).await.unwrap()
+            );
+
             let channel: ChannelId =
                 ChannelId::from(vcping_settings.as_ref().unwrap().channel_id as u64);
 

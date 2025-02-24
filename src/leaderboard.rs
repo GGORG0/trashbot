@@ -177,6 +177,8 @@ pub async fn increment_user_time(
         .upsert(true)
         .await?;
 
-    update_leaderboard(guild_id, http).await;
+    if let Err(e) = update_leaderboard(guild_id, http).await {
+        eprintln!("Failed to update leaderboard: {}", e);
+    }
     Ok(())
 }
