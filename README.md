@@ -1,3 +1,3 @@
-# trashbot
+# Garbage Dump Bot
 
-A Discord bot for my little private server. Written in Rust.
+Fork of GGORG0's discrod bot adding more functionality. Written in Rust (I'm not a furry I swear).

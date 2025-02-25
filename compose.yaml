@@ -1,8 +1,24 @@
 services:
   trashbot:
-    image: ghcr.io/ggorg0/trashbot:master
-    pull_policy: always
     build:
       context: .
-    env_file: .env
-    restart: unless-stopped
+      dockerfile: Dockerfile
+      args:
+        - BUILDPLATFORM=linux/amd64
+    depends_on:
+      - mongodb
+    restart: always
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URI=mongodb://mongodb:27017/garbage
+  mongodb:
+    image: mongodb/mongodb-community-server:6.0-ubi8
+    volumes:
+      - type: bind
+        source: ./db
+        target: /data/db
+    ports:
+      - :27017
+    restart: always
+    user: 1000:1000

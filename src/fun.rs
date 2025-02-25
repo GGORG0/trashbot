@@ -59,7 +59,7 @@ pub async fn nixos(
         return Ok(());
     }
 
-    if score < 50 && !ctx.author().bot {
+    if score > 50 && !ctx.author().bot {
         let ts =
             Timestamp::from_unix_timestamp((Utc::now() + Duration::from_secs(69)).timestamp())?;
 
@@ -70,6 +70,14 @@ pub async fn nixos(
                 .disable_communication_until_datetime(&ctx.http(), ts)
                 .await;
         }
+
+        ctx.reply(format!(
+            ":angry: Hell nah, your attitude towards NixOS is too high. I'm banning that cunt: {}%",
+            score
+        ))
+        .await?;
+
+        return Ok(());
     }
 
     ctx.reply(format!(":fire: Your attitude towards NixOS is: {}%", score))
