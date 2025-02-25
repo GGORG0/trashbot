@@ -37,7 +37,7 @@ pub async fn get_leaderboard(guild_id: u64) -> Result<CreateEmbed, Error> {
                     i + 1,
                     user.user_id,
                     user.time / 3600,
-                    user.time / 60,
+                    (user.time / 60) % 60,
                 )
             } else {
                 format!(
@@ -45,7 +45,7 @@ pub async fn get_leaderboard(guild_id: u64) -> Result<CreateEmbed, Error> {
                     i + 1,
                     user.user_id,
                     user.time / 3600,
-                    user.time / 60,
+                    (user.time / 60) % 60,
                 )
             }
         })
