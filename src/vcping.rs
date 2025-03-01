@@ -68,11 +68,17 @@ pub async fn voice_state_update_handler(
 
     let role: RoleId = std::env::var("VCPING_ROLE_ID").unwrap().parse().unwrap();
 
+    let channel_name = new.channel_id.unwrap().name(ctx.http()).await.unwrap();
+
+    if channel_name.contains("!np") {
+        return Ok(());
+    }
+
     let message = format!(
         ":fire: {}, {} joined empty voice channel: {}!",
         role.mention(),
         new.member.clone().unwrap().user.tag(),
-        new.channel_id.unwrap().name(ctx.http()).await.unwrap()
+        channel_name
     );
 
     let channel: ChannelId = std::env::var("VCPING_CHANNEL_ID").unwrap().parse().unwrap();
