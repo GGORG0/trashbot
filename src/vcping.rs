@@ -1,7 +1,10 @@
 use crate::{Context, Error};
-use poise::serenity_prelude::{self as serenity, CacheHttp, Mentionable, RoleId};
+use once_cell::sync::Lazy;
+use poise::serenity_prelude::{self as serenity, CacheHttp, Mentionable, RoleId, UserId};
 use poise::serenity_prelude::{ChannelId, VoiceState};
 use poise::CreateReply;
+use std::collections::HashMap;
+use tokio::sync::Mutex;
 
 // TODO: add caching everywhere
 
@@ -37,6 +40,30 @@ pub async fn vcping(ctx: Context<'_>) -> Result<(), Error> {
     Ok(())
 }
 
+static CHANNEL_RATELIMIT: Lazy<Mutex<HashMap<ChannelId, std::time::Instant>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+static USER_RATELIMIT: Lazy<Mutex<HashMap<UserId, std::time::Instant>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+async fn check_and_update_ratelimit<ID>(
+    ratelimit_map: &Lazy<Mutex<HashMap<ID, std::time::Instant>>>,
+    id: &ID,
+) -> bool
+where
+    ID: std::hash::Hash + Eq + Clone,
+{
+    let mut ratelimit_map = ratelimit_map.lock().await;
+
+    let is_rate_limited = ratelimit_map
+        .get(id)
+        .is_some_and(|time| time.elapsed().as_secs() < 60);
+
+    ratelimit_map.insert(id.clone(), std::time::Instant::now());
+
+    is_rate_limited
+}
+
 pub async fn voice_state_update_handler(
     ctx: &serenity::Context,
     old: &Option<VoiceState>,
@@ -48,6 +75,18 @@ pub async fn voice_state_update_handler(
     };
 
     if !joined {
+        return Ok(());
+    }
+
+    if check_and_update_ratelimit(&CHANNEL_RATELIMIT, &new.channel_id.unwrap()).await
+        || check_and_update_ratelimit(&USER_RATELIMIT, &new.user_id).await
+    {
+        return Ok(());
+    }
+
+    let channel_name = new.channel_id.unwrap().name(ctx.http()).await.unwrap();
+
+    if channel_name.contains("!np") {
         return Ok(());
     }
 
@@ -67,12 +106,6 @@ pub async fn voice_state_update_handler(
     }
 
     let role: RoleId = std::env::var("VCPING_ROLE_ID").unwrap().parse().unwrap();
-
-    let channel_name = new.channel_id.unwrap().name(ctx.http()).await.unwrap();
-
-    if channel_name.contains("!np") {
-        return Ok(());
-    }
 
     let message = format!(
         ":fire: {}, {} joined empty voice channel: {}!",
