@@ -90,6 +90,18 @@ pub async fn voice_state_update_handler(
         None => new.channel_id.is_some(),
     };
 
+    let guild_id = new.guild_id.clone().unwrap();
+    let guild_details = ctx.http.get_guild(guild_id).await.unwrap();
+    let afk_channel_id = guild_details.afk_metadata.unwrap().afk_channel_id;
+
+    if (new.channel_id.is_some() && new.channel_id.unwrap() == afk_channel_id)
+        || (old.is_some()
+            && old.clone().unwrap().channel_id.is_some()
+            && old.clone().unwrap().channel_id.unwrap() == afk_channel_id)
+    {
+        return Ok(());
+    }
+
     if leave {
         let history = JOIN_HISTORY.lock();
 
